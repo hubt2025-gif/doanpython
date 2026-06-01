@@ -69,23 +69,29 @@ class AssetManager:
         self.snd_die   = None
         self.snd_click = None
         try:
-            pygame.mixer.init(frequency=22050, size=-16, channels=1, buffer=256)
-            self.snd_jump  = self._beep(880,  0.08, 0.28)
-            self.snd_score = self._beep(1320, 0.12, 0.30)
-            self.snd_die   = self._beep(220,  0.30, 0.50)
-            self.snd_click = self._beep(660,  0.06, 0.18)
-        except Exception:
-            pass
+            pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=512)
+            pygame.mixer.init()
+            self.snd_jump  = self._beep(880,  0.10, 0.30)
+            self.snd_score = self._beep(1320, 0.15, 0.35)
+            self.snd_die   = self._beep(180,  0.40, 0.55)
+            self.snd_click = self._beep(660,  0.07, 0.20)
+        except Exception as e:
+            print(f"[Sound] Init failed: {e}")
 
     def _beep(self, freq, duration, vol):
         try:
             import numpy as np
-            sr   = 22050
-            t    = np.linspace(0, duration, int(sr * duration), False)
-            env  = np.exp(-t * 6)
-            wave = (np.sin(2 * np.pi * freq * t) * env * vol * 32767).astype(np.int16)
-            return pygame.sndarray.make_sound(wave)
-        except Exception:
+            sr    = pygame.mixer.get_init()[0]   # lấy sample rate thực tế
+            n     = int(sr * duration)
+            t     = np.linspace(0, duration, n, endpoint=False)
+            env   = np.exp(-t * 5)               # fade-out tự nhiên
+            wave  = (np.sin(2 * np.pi * freq * t) * env * vol * 32767).astype(np.int16)
+            # Pygame mixer stereo cần array shape (n, 2)
+            stereo = np.column_stack([wave, wave])
+            snd    = pygame.sndarray.make_sound(stereo)
+            return snd
+        except Exception as e:
+            print(f"[Sound] Beep {freq}Hz failed: {e}")
             return None
 
     def set_volume(self, v: float):
@@ -761,6 +767,7 @@ class FlappyBirdGame:
     """
 
     def __init__(self):
+        pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=512)
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Flappy Bird – Pixel Edition")
